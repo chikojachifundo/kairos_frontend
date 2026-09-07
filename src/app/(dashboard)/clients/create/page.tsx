@@ -1,28 +1,31 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+"use client";
 
-import { ClientForm } from "@/components/clients/client-form";
 import { PageHeader } from "@/components/ui/page-header";
+import { ClientForm } from "@/components/clients/client-form";
+import Link from "next/link";
+import {Button} from "@/components/ui/button";
+import {ArrowLeft} from "lucide-react";
 
 export default function CreateClientPage() {
     return (
-        <div className="flex flex-col gap-6">
-            <div>
-                <Link
-                    href="/clients"
-                    className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-primary"
+        <div className="space-y-6">
+            <Link href="/clients">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-ml-2"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Back to Clients
-                </Link>
+                </Button>
+            </Link>
 
-                <PageHeader
-                    title="Add New Client"
-                    description="Create a new client profile and capture their information."
-                />
-            </div>
+            <PageHeader
+                title="Create Client"
+                description="Register a new client and assign them to a branch and group."
+            />
 
-            <ClientForm />
+            <ClientForm mode="create" />
         </div>
     );
 }

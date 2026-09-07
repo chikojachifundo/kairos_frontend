@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import {LayoutDashboard, Plus} from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { BranchTable } from "@/components/branches/branch-table";
 
 import type { Branch } from "@/types/branch";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useFeedback } from "@/components/ui/feedback-bar";
 
 const mockBranches: Branch[] = [
     {
@@ -23,7 +24,8 @@ const mockBranches: Branch[] = [
         phone: "+265 888 123 456",
         email: "headoffice@company.com",
         location: "Blantyre",
-
+        activeClients:40,
+        activeLoans:36,
         status: "active",
     },
     {
@@ -35,7 +37,8 @@ const mockBranches: Branch[] = [
         phone: "+265 999 234 567",
         email: "lilongwe@company.com",
         location: "Lilongwe",
-
+        activeClients:40,
+        activeLoans:36,
         status: "active",
     },
     {
@@ -47,7 +50,8 @@ const mockBranches: Branch[] = [
         phone: "+265 888 345 678",
         email: "mzuzu@company.com",
         location: "Mzuzu",
-
+        activeClients:40,
+        activeLoans:36,
         status: "active",
     },
     {
@@ -59,7 +63,8 @@ const mockBranches: Branch[] = [
         phone: "+265 999 456 789",
         email: "zomba@company.com",
         location: "Zomba",
-
+        activeClients:40,
+        activeLoans:36,
         status: "active",
     },
     {
@@ -71,12 +76,14 @@ const mockBranches: Branch[] = [
         phone: "+265 888 567 890",
         email: "mangochi@company.com",
         location: "Mangochi",
-
+        activeClients:40,
+        activeLoans:36,
         status: "inactive",
     },
 ];
 
 export default function BranchesPage() {
+    const { showFeedback } = useFeedback();
     const [search, setSearch] = useState("");
     const [type, setType] = useState("");
     const [status, setStatus] = useState("");
@@ -149,8 +156,16 @@ export default function BranchesPage() {
                 setTimeout(resolve, 700),
             );
 
+            const branchName = selectedBranch.name;
+
             setShowDeleteConfirmation(false);
             setSelectedBranch(null);
+
+            showFeedback(
+                "success",
+                "Branch deleted successfully",
+                `${branchName} has been removed from the system.`,
+            );
         } finally {
             setDeleting(false);
         }
@@ -167,8 +182,17 @@ export default function BranchesPage() {
                 setTimeout(resolve, 700),
             );
 
+            const branchName = selectedBranch.name;
+
             setShowDeactivateConfirmation(false);
             setSelectedBranch(null);
+
+            showFeedback(
+                "success",
+                "Branch updated successfully",
+                `${branchName} has been updated from the system.`,
+            );
+
         } finally {
             setDeactivating(false);
         }
@@ -178,10 +202,11 @@ export default function BranchesPage() {
         <div className="space-y-6">
             <PageHeader
                 title="Branch Directory"
+                icon={LayoutDashboard}
                 description="Manage company branches and their operational information."
                 action={
                     <Link href="/branches/create">
-                        <Button>
+                        <Button size="sm">
                             <Plus className="h-4 w-4" />
                             Add New Branch
                         </Button>

@@ -1,23 +1,94 @@
-export type ClientStatus =
-    | "active"
-    | "arrears"
-    | "inactive";
+export type ClientStatus = "active" | "inactive";
+
+export type Gender = "male" | "female" | "other";
+
+export type EmploymentStatus =
+    | "employed"
+    | "self_employed"
+    | "business_owner"
+    | "unemployed"
+    | "other";
 
 export interface Client {
     id: number;
 
+    // Identification
     clientNumber: string;
+    nationalId: string;
 
-    name: string;
-    initials: string;
+    // Personal Information
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    gender: Gender;
+    dateOfBirth: string;
 
-    group: string;
+    // Contact
+    phone: string;
+    alternativePhone: string;
+    email: string;
+
+    // Address
+    address: string;
+    city: string;
+    region: string;
+
+    // Organisation
+    branchId: number;
+    branchName: string;
+    groupId: number;
+    groupName: string;
+
+    // Employment / Business
+    employmentStatus: EmploymentStatus;
+    employer: string;
+    occupation: string;
+    monthlyIncome: number;
+
+    // Account
+    status: ClientStatus;
+    registrationDate: string;
+    deactivatedAt?: string;
+    deactivationReason?: string;
+
+    // Loan summary
+    activeLoans: number;
+    totalLoans: number;
+    totalDisbursed: number;
+    totalRepaid: number;
+    outstandingBalance: number;
+
+    notes: string;
+}
+
+export interface ClientFormData {
+    clientNumber: string;
+    nationalId: string;
+
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    gender: Gender | "";
+    dateOfBirth: string;
 
     phone: string;
+    alternativePhone: string;
+    email: string;
 
-    activeLoans: number;
+    address: string;
+    city: string;
+    region: string;
 
-    totalBorrowed: number;
+    branchId: number | "";
+    groupId: number | "";
+
+    employmentStatus: EmploymentStatus | "";
+    employer: string;
+    occupation: string;
+    monthlyIncome: string;
 
     status: ClientStatus;
+    registrationDate: string;
+
+    notes: string;
 }

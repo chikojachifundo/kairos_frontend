@@ -3,7 +3,7 @@ import {
     ClipboardList,
     FileBarChart,
     LayoutDashboard,
-    LogOut,
+    LogOut, PackageIcon,
     Receipt,
     Settings,
     ShieldCheck,
@@ -33,6 +33,11 @@ export const mainNavigation: NavigationItem[] = [
         title: "Clients",
         href: "/clients",
         icon: Users,
+    },
+    {
+        title: "Products",
+        href: "/products",
+        icon: PackageIcon,
     },
     {
         title: "Disbursements",

@@ -82,10 +82,11 @@ export function DropdownMenu({
                 type="button"
                 onClick={() => setOpen((value) => !value)}
                 className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-md",
+                    "flex h-9 w-9 items-center justify-center rounded-md",
                     "text-muted transition-colors",
                     "hover:bg-surface-low hover:text-foreground",
-                    open && "bg-surface-low text-foreground",
+                    open &&
+                    "bg-surface-low text-foreground",
                 )}
                 aria-label="Open actions"
                 aria-expanded={open}
@@ -96,7 +97,7 @@ export function DropdownMenu({
             {open && (
                 <div
                     className={cn(
-                        "absolute right-0 top-8 z-30 w-44",
+                        "absolute right-0 top-10 z-30 w-44",
                         "rounded-lg border border-border",
                         "bg-surface p-1 shadow-lg",
                     )}

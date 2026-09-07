@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {ChevronLeft, Plus, WalletCards} from "lucide-react";
+import {ChevronLeft, Plus, WalletCards, WalletIcon} from "lucide-react";
 
 import {
     footerNavigation,
@@ -131,9 +131,9 @@ export function Sidebar({
                                 collapsed && "lg:h-11 lg:w-11 lg:p-0"
                             )}
                         >
-                            <Plus size={18} />
+                            <WalletIcon size={18} />
 
-                            {!collapsed && <span>New Loan</span>}
+                            {!collapsed && <span>New Disbursement</span>}
                         </Link>
                     </div>
 

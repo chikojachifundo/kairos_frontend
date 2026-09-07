@@ -11,6 +11,7 @@ import {Input} from "@/components/ui/input";
 import {Select} from "@/components/ui/select";
 import {Textarea} from "@/components/ui/textarea";
 import {ConfirmDialog} from "@/components/ui/confirm-dialog";
+import { useFeedback } from "@/components/ui/feedback-bar";
 
 import type {BranchFormData} from "@/types/branch";
 
@@ -48,7 +49,7 @@ export function BranchForm({
         ...defaultFormData,
         ...initialData,
     });
-
+    const { showFeedback } = useFeedback();
     const [errors, setErrors] = useState<FormErrors>({});
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -137,8 +138,18 @@ export function BranchForm({
 
             // router.push(isEdit ? `/branches/${initialData?.branchCode}` : "/branches");
             if (isEdit && branchId) {
+                showFeedback(
+                    "success",
+                    "Branch updated successfully",
+                    `${form.name} has been updated from the system.`,
+                );
                 router.push(`/branches/${branchId}`);
             } else {
+                showFeedback(
+                    "success",
+                    "Branch updated successfully",
+                    `${form.name} has been updated from the system.`,
+                );
                 router.push("/branches");
             }
         } finally {
