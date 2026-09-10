@@ -49,7 +49,7 @@ export function BranchTable({
                         {branch.name}
                     </div>
 
-                    <div className="mt-0.5 text-[10px] text-muted">
+                    <div className="mt-0.5 text-muted">
                         {branch.branchCode}
                     </div>
                 </div>
@@ -60,7 +60,7 @@ export function BranchTable({
             key: "manager",
             header: "Manager",
             render: (branch: Branch) => (
-                <span className="text-xs text-foreground">
+                <span className=" text-foreground">
           {branch.manager}
         </span>
             ),
@@ -70,7 +70,7 @@ export function BranchTable({
             key: "location",
             header: "Location",
             render: (branch: Branch) => (
-                <span className="text-xs text-muted">
+                <span className=" text-muted">
           {branch.location}
         </span>
             ),
@@ -86,7 +86,7 @@ export function BranchTable({
                             ? "success"
                             : "neutral"
                     }
-                    className="px-2 py-0.5 text-[10px]"
+                    className="px-2 py-0.5"
                 >
                     {branch.status === "active"
                         ? "Active"

@@ -1,6 +1,7 @@
 "use client";
 
 import {useMemo, useState} from "react";
+import axios from "axios";
 import {Info} from "lucide-react";
 import {useRouter} from "next/navigation";
 
@@ -15,6 +16,7 @@ import {
 
 import type {ProductCharge} from "@/types/product-charge";
 import type {ProductChargeRecord} from "@/types/product-charge-record";
+import {productChargeRecordService} from "@/services/product-charge-record-service";
 
 interface ProductChargeRecordFormProps {
     mode: "create" | "edit";
@@ -121,22 +123,25 @@ export function ProductChargeRecordForm({
     async function confirmSave() {
         setSaving(true);
 
-        await new Promise((resolve) =>
-            setTimeout(resolve, 700),
-        );
-
-        showFeedback(
-            "success",
-            "",
-            mode === "create"
-                ? `${selectedCharge?.name} has been added to ${productName}.`
-                : `${selectedCharge?.name} has been updated successfully.`,
-        );
-
-        setSaving(false);
-        setConfirmOpen(false);
-
-        router.push(`/products/${productId}/charges`);
+        try {
+            if (!form.productChargeId) return;
+            const payload = {productId, productChargeId: Number(form.productChargeId), value: Number(form.value), status: form.status, description: form.description.trim()};
+            if (mode === "create") {
+                await productChargeRecordService.createProductChargeRecord(payload);
+            } else {
+                if (!record) throw new Error("Charge record information is missing.");
+                await productChargeRecordService.updateProductChargeRecord(record.id, payload);
+            }
+            setConfirmOpen(false);
+            showFeedback("success", "", mode === "create" ? `${selectedCharge?.name} has been added to ${productName}.` : `${selectedCharge?.name} has been updated successfully.`);
+            router.push(`/products/${productId}/charges`);
+        } catch (error: unknown) {
+            console.error("Failed to save product charge record:", error);
+            const message = axios.isAxiosError<{message?: string}>(error) ? error.response?.data?.message || "Please try again." : error instanceof Error ? error.message : "Please try again.";
+            showFeedback("error", "Unable to save product charge", message);
+        } finally {
+            setSaving(false);
+        }
     }
 
     return (

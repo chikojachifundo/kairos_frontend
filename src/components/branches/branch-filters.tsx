@@ -47,7 +47,7 @@ export function BranchFilters({
                         value={search}
                         onChange={(event) => onSearchChange(event.target.value)}
                         placeholder="Search branches..."
-                        className="h-9 pl-9 text-xs"
+                        className="h-9 pl-9 "
                     />
                 </div>
 
@@ -62,7 +62,7 @@ export function BranchFilters({
                     Filters
 
                     {hasFilters && (
-                        <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] text-primary">
+                        <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1  text-primary">
               {(type ? 1 : 0) + (status ? 1 : 0)}
             </span>
                     )}
@@ -76,7 +76,7 @@ export function BranchFilters({
                         <Select
                             value={type}
                             onChange={(event) => onTypeChange(event.target.value)}
-                            className="h-9 text-xs sm:w-48"
+                            className="h-9  sm:w-48"
                             aria-label="Branch type"
                         >
                             <option value="">All Branch Types</option>
@@ -89,7 +89,7 @@ export function BranchFilters({
                         <Select
                             value={status}
                             onChange={(event) => onStatusChange(event.target.value)}
-                            className="h-9 text-xs sm:w-40"
+                            className="h-9  sm:w-40"
                             aria-label="Branch status"
                         >
                             <option value="">All Statuses</option>

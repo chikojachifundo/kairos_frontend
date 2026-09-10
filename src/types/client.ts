@@ -1,3 +1,6 @@
+import {Branch} from "@/types/branch";
+import {Group} from "@/types/group";
+
 export type ClientStatus = "active" | "inactive";
 
 export type Gender = "male" | "female" | "other";
@@ -59,6 +62,10 @@ export interface Client {
     outstandingBalance: number;
 
     notes: string;
+
+    /** Expanded relationships returned by the API. */
+    branch?: Branch;
+    group?: Group;
 }
 
 export interface ClientFormData {
@@ -91,4 +98,7 @@ export interface ClientFormData {
     registrationDate: string;
 
     notes: string;
+
+    branch?: Branch;
+    group?: Group;
 }

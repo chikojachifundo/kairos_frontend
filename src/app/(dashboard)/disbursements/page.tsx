@@ -1,14 +1,13 @@
 "use client";
 
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import Link from "next/link";
 
 import {
     Banknote,
     CheckCircle2,
-    Clock3,
+    Clock3, Loader2,
     Plus,
-    XCircle,
 } from "lucide-react";
 
 import {PageHeader} from "@/components/ui/page-header";
@@ -23,23 +22,28 @@ import {DisbursementTable} from "@/components/disbursements/disbursement-table";
 
 import type {Disbursement} from "@/types/disbursement";
 
-import {mockDisbursements} from "./mock-data";
-
 import {mockClients} from "@/app/(dashboard)/clients/mock-data";
 import {mockProducts} from "@/app/(dashboard)/products/mock-data";
 import {mockBranches} from "@/app/(dashboard)/branches/mock-data";
+import {disbursementService} from "@/services/disbursement-service";
+import {ProductTable} from "@/components/products/product-table";
+import {Product} from "@/types/product";
+import {productService} from "@/services/product-service";
+import {Client} from "@/types/client";
+import {clientService} from "@/services/client-service";
+import {Branch} from "@/types/branch";
+import {branchService} from "@/services/branch-service";
 
 type StatusFilter = "all" | Disbursement["status"];
 
 export default function DisbursementsPage() {
     const {showFeedback} = useFeedback();
 
-    const [disbursements, setDisbursements] =
-        useState<Disbursement[]>(mockDisbursements);
 
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState<StatusFilter>("all");
     const [productId, setProductId] = useState("all");
+
 
     const [selectedDisbursement, setSelectedDisbursement] =
         useState<Disbursement | null>(null);
@@ -49,9 +53,58 @@ export default function DisbursementsPage() {
     >(null);
 
     const [actionLoading, setActionLoading] = useState(false);
+    const [error, setError] = useState("");
+
+
+    const [disbursements, setDisbursements] =
+        useState<Disbursement[]>([]);
+
+    const [clients, setClients] =
+        useState<Client[]>([]);
+
+    const [products, setProducts] =
+        useState<Product[]>([]);
+
+    const [branches, setBranches] =
+        useState<Branch[]>([]);
+
+    const [loading, setLoading] = useState(true);
+
+
+    useEffect(() => {
+
+        async function loadData() {
+            try {
+                setLoading(true);
+                setError("");
+
+                const [
+                    disbursementResponse,
+                    clientResponse,
+                    productResponse,
+                    branchResponse,
+                ] = await Promise.all([
+                    disbursementService.getDisbursements(),
+                    clientService.getClients(),
+                    productService.getProducts(),
+                    branchService.getBranches(),
+                ]);
+
+                setDisbursements(disbursementResponse.data);
+                setClients(clientResponse.data);
+                setProducts(productResponse.data);
+                setBranches(branchResponse.data);
+            } catch (e) {
+                console.error("Failed to load data " + e);
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadData()
+    }, [showFeedback]);
 
     const getClientName = (clientId: number) => {
-        const client = mockClients.find((item) => item.id === clientId);
+        const client = clients.find((item) => item.id === clientId);
 
         if (!client) {
             return "Unknown Client";
@@ -61,15 +114,22 @@ export default function DisbursementsPage() {
     };
 
     const getProductName = (productId: number) => {
-        const product = mockProducts.find((item) => item.id === productId);
+        const product = products.find((item) => item.id === productId);
 
         return product?.name ?? "Unknown Product";
     };
 
-    const getBranchName = (branchId: number) => {
-        const branch = mockBranches.find((item) => item.id === branchId);
+    const getBranchName = (disbursement: Disbursement) => {
+        return disbursement.client?.branch?.name ||
+            clients.find((client) => client.id === disbursement.clientId)?.branchName ||
+            branches.find((branch) => branch.id === disbursement.branchId)?.name ||
+            "Unknown Branch";
+    };
 
-        return branch?.name ?? "Unknown Branch";
+    const getGroupName = (disbursement: Disbursement) => {
+        return disbursement.client?.group?.title ||
+            clients.find((client) => client.id === disbursement.clientId)?.groupName ||
+            "Unknown Group";
     };
 
     const filteredDisbursements = useMemo(() => {
@@ -168,81 +228,72 @@ export default function DisbursementsPage() {
         }
 
         setActionLoading(true);
+        try {
 
-        await new Promise((resolve) =>
-            setTimeout(resolve, 500),
-        );
-
-        if (dialogType === "approve") {
-            setDisbursements((current) =>
-                current.map((item) => {
-                    if (item.id !== selectedDisbursement.id) {
-                        return item;
-                    }
-
-                    return {
-                        ...item,
-                        status:
-                            item.status === "pending"
-                                ? "approved"
-                                : "disbursed",
-                        approvalDate:
-                            item.status === "pending"
-                                ? new Date()
-                                    .toISOString()
-                                    .split("T")[0]
-                                : item.approvalDate,
-                    };
-                }),
-            );
-
-            showFeedback(
-                "success",
-                "",
-
-                selectedDisbursement.status === "pending"
-                    ? `${selectedDisbursement.disbursementNumber} has been approved successfully.`
-                    : `${selectedDisbursement.disbursementNumber} has been marked as disbursed.`,
-            );
-        }
-
-        if (dialogType === "cancel") {
-            setDisbursements((current) =>
-                current.map((item) =>
-                    item.id === selectedDisbursement.id
-                        ? {
-                            ...item,
-                            status: "cancelled",
+            if (dialogType === "approve") {
+                const nextStatus = selectedDisbursement.status === "pending" ? "approved" : "disbursed";
+                const updated = await disbursementService.approveDisbursement(selectedDisbursement.id);
+                setDisbursements((current) =>
+                    current.map((item) => {
+                        if (item.id !== selectedDisbursement.id) {
+                            return item;
                         }
-                        : item,
-                ),
-            );
 
-            showFeedback(
-                "warning",
-                "",
-                `${selectedDisbursement.disbursementNumber} has been cancelled.`,
-            );
+                        return updated;
+                    }),
+                );
+
+                showFeedback(
+                    "success",
+                    "",
+
+                    selectedDisbursement.status === "pending"
+                        ? `${selectedDisbursement.disbursementNumber} has been approved successfully.`
+                        : `${selectedDisbursement.disbursementNumber} has been marked as disbursed.`,
+                );
+            }
+
+            if (dialogType === "cancel") {
+                const updated = await disbursementService.rejectDisbursement(selectedDisbursement.id);
+                setDisbursements((current) =>
+                    current.map((item) =>
+                        item.id === selectedDisbursement.id
+                            ? updated
+                            : item,
+                    ),
+                );
+
+                showFeedback(
+                    "warning",
+                    "",
+                    `${selectedDisbursement.disbursementNumber} has been cancelled.`,
+                );
+            }
+
+            if (dialogType === "delete") {
+                await disbursementService.deleteDisbursement(selectedDisbursement.id);
+                setDisbursements((current) =>
+                    current.filter(
+                        (item) =>
+                            item.id !== selectedDisbursement.id,
+                    ),
+                );
+
+                showFeedback(
+                    "success",
+                    "",
+                    `${selectedDisbursement.disbursementNumber} has been deleted.`,
+                );
+            }
+
+            setSelectedDisbursement(null);
+            setDialogType(null);
+        } catch (error) {
+            console.error("Failed to update disbursement:", error);
+            showFeedback("error", "Unable to update disbursement", "Please try again.");
+        } finally {
+            setActionLoading(false);
         }
-
-        if (dialogType === "delete") {
-            setDisbursements((current) =>
-                current.filter(
-                    (item) =>
-                        item.id !== selectedDisbursement.id,
-                ),
-            );
-
-            showFeedback(
-                "success",
-                "",
-                `${selectedDisbursement.disbursementNumber} has been deleted.`,
-            );
-        }
-
-        setActionLoading(false);
-        setSelectedDisbursement(null);
-        setDialogType(null);
     };
 
     const getDialogTitle = () => {
@@ -455,7 +506,7 @@ export default function DisbursementsPage() {
                                 All Products
                             </option>
 
-                            {mockProducts.map((product) => (
+                            {products.map((product) => (
                                 <option
                                     key={product.id}
                                     value={product.id}
@@ -503,6 +554,10 @@ export default function DisbursementsPage() {
                             <option value="cancelled">
                                 Cancelled
                             </option>
+
+                            <option value="rejected">
+                                Rejected
+                            </option>
                         </Select>
                     </div>
                 </div>
@@ -548,30 +603,42 @@ export default function DisbursementsPage() {
                     </div>
                 </div>
 
-                <DisbursementTable
-                    disbursements={filteredDisbursements}
-                    getClientName={getClientName}
-                    getProductName={getProductName}
+
+                {loading ? (
+                    <div className="flex min-h-40 items-center justify-center"><Loader2
+                        className="h-6 w-6 animate-spin text-muted"/></div>
+                ) : error ? (
+                    <div className="p-6 text-center"><p className="text-sm text-error">{error}</p><Button
+                        className="mt-4" variant="outline" size="sm" onClick={() => window.location.reload()}>Try
+                        Again</Button></div>
+                ) : (
+                    <DisbursementTable
+                        disbursements={filteredDisbursements}
+                        getClientName={getClientName}
+                        getProductName={getProductName}
                     getBranchName={getBranchName}
-                    onApprove={(disbursement) =>
-                        openDialog(
-                            "approve",
-                            disbursement,
-                        )
-                    }
-                    onCancel={(disbursement) =>
-                        openDialog(
-                            "cancel",
-                            disbursement,
-                        )
-                    }
-                    onDelete={(disbursement) =>
-                        openDialog(
-                            "delete",
-                            disbursement,
-                        )
-                    }
-                />
+                    getGroupName={getGroupName}
+                        onApprove={(disbursement) =>
+                            openDialog(
+                                "approve",
+                                disbursement,
+                            )
+                        }
+                        onCancel={(disbursement) =>
+                            openDialog(
+                                "cancel",
+                                disbursement,
+                            )
+                        }
+                        onDelete={(disbursement) =>
+                            openDialog(
+                                "delete",
+                                disbursement,
+                            )
+                        }
+                    />)}
+
+
             </Card>
 
             {/* Confirmation */}

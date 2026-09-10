@@ -12,7 +12,7 @@ import {
 
 interface ProductTableProps {
     products: Product[];
-    getChargeCount: (productId: string) => number;
+    getChargeCount: (productId: number) => number;
     onDeactivate: (product: Product) => void;
     onDelete: (product: Product) => void;
 }

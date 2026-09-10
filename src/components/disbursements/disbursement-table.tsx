@@ -24,7 +24,8 @@ interface DisbursementTableProps {
 
     getClientName: (clientId: number) => string;
     getProductName: (productId: number) => string;
-    getBranchName: (branchId: number) => string;
+    getBranchName: (disbursement: Disbursement) => string;
+    getGroupName: (disbursement: Disbursement) => string;
 
     onApprove: (disbursement: Disbursement) => void;
     onCancel: (disbursement: Disbursement) => void;
@@ -62,6 +63,9 @@ function getStatusVariant(status: Disbursement["status"]) {
         case "cancelled":
             return "danger";
 
+        case "rejected":
+            return "danger";
+
         case "pending":
         default:
             return "neutral";
@@ -79,6 +83,9 @@ function getStatusLabel(status: Disbursement["status"]) {
         case "cancelled":
             return "Cancelled";
 
+        case "rejected":
+            return "Rejected";
+
         case "pending":
         default:
             return "Pending";
@@ -90,6 +97,7 @@ export function DisbursementTable({
                                       getClientName,
                                       getProductName,
                                       getBranchName,
+                                      getGroupName,
                                       onApprove,
                                       onCancel,
                                       onDelete,
@@ -99,9 +107,17 @@ export function DisbursementTable({
             <table className="w-full min-w-[1100px]">
                 <thead>
                 <tr className="border-b border-border bg-surface-low">
+
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted">
-                        Disbursement
+                        ID
                     </th>
+
+
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted">
+                        Group
+                    </th>
+
+
 
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted">
                         Client
@@ -139,7 +155,7 @@ export function DisbursementTable({
                 {disbursements.length === 0 ? (
                     <tr>
                         <td
-                            colSpan={9}
+                            colSpan={10}
                             className="px-4 py-12 text-center text-sm text-muted"
                         >
                             No disbursements found.
@@ -151,6 +167,12 @@ export function DisbursementTable({
                             key={disbursement.id}
                             className="transition-colors hover:bg-surface-low/60"
                         >
+
+
+                            <td className="px-4 py-4 font-mono text-xs text-muted">
+                                #{disbursement.id}
+                            </td>
+
                             {/* Disbursement Number */}
                             <td className="px-4 py-4">
                                 <div>
@@ -162,9 +184,10 @@ export function DisbursementTable({
                                     </Link>
 
                                     <p className="mt-0.5 text-xs text-muted">
-                                        {getBranchName(
-                                            disbursement.branchId,
-                                        )}
+                                        {getBranchName(disbursement)}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-muted">
+                                        Group: {getGroupName(disbursement)}
                                     </p>
                                 </div>
                             </td>
@@ -266,7 +289,7 @@ export function DisbursementTable({
                                                     )
                                                 }
                                             >
-                                                <CheckCircle2 className="h-4 w-4" />
+                                                <CheckCircle2 className="h-4 w-4" /> &nbsp;
                                                 Approve
                                             </DropdownMenuItem>
 
@@ -278,7 +301,7 @@ export function DisbursementTable({
                                                     )
                                                 }
                                             >
-                                                <XCircle className="h-4 w-4" />
+                                                <XCircle className="h-4 w-4" /> &nbsp;
                                                 Cancel
                                             </DropdownMenuItem>
                                         </>
@@ -295,17 +318,17 @@ export function DisbursementTable({
                                         </DropdownMenuItem>
                                     )}
 
-                                    {disbursement.status !== "disbursed" && (
-                                        <DropdownMenuItem
-                                            danger
-                                            onClick={() =>
-                                                onDelete(disbursement)
-                                            }
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            Delete
-                                        </DropdownMenuItem>
-                                    )}
+                                    {/*{disbursement.status !== "disbursed" && (*/}
+                                    {/*    <DropdownMenuItem*/}
+                                    {/*        danger*/}
+                                    {/*        onClick={() =>*/}
+                                    {/*            onDelete(disbursement)*/}
+                                    {/*        }*/}
+                                    {/*    >*/}
+                                    {/*        <Trash2 className="h-4 w-4" />*/}
+                                    {/*        Delete*/}
+                                    {/*    </DropdownMenuItem>*/}
+                                    {/*)}*/}
                                 </DropdownMenu>
                             </td>
                         </tr>

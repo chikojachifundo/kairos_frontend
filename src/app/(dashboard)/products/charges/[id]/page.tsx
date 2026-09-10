@@ -3,12 +3,14 @@
 import Link from "next/link";
 import {ArrowLeft, Edit, Package} from "lucide-react";
 import {useParams} from "next/navigation";
-
-import {mockProductCharges} from "../../mock-data";
+import {useEffect, useState} from "react";
+import axios from "axios";
 
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {PageHeader} from "@/components/ui/page-header";
+import {productChargeService} from "@/services/product-charge-service";
+import type {ProductCharge} from "@/types/product-charge";
 
 export default function ProductChargeShowPage() {
     const params = useParams();
@@ -17,9 +19,39 @@ export default function ProductChargeShowPage() {
 
     const numericId = Number(id);
 
-    const charge = mockProductCharges.find(
-        (item) => item.id === numericId,
-    );
+    const [charge, setCharge] = useState<ProductCharge | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        async function loadCharge() {
+            if (!numericId || Number.isNaN(numericId)) {
+                setError("Invalid charge ID.");
+                setLoading(false);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                setCharge(await productChargeService.getProductCharge(numericId));
+            } catch (error: unknown) {
+                console.error("Failed to load product charge:", error);
+                setError(
+                    axios.isAxiosError<{message?: string}>(error)
+                        ? error.response?.data?.message || "Unable to load charge information."
+                        : "Unable to load charge information.",
+                );
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        loadCharge();
+    }, [numericId]);
+
+    if (loading) {
+        return <div className="space-y-6"><PageHeader title="Product Charge" description="Loading charge information..." icon={Package}/></div>;
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -48,8 +80,7 @@ export default function ProductChargeShowPage() {
                         </h2>
 
                         <p className="mt-2 max-w-md text-sm text-muted">
-                            The charge you are looking for does not exist or
-                            may have been removed.
+                            {error || "The charge you are looking for does not exist or may have been removed."}
                         </p>
 
                         <p className="mt-2 text-xs text-muted">

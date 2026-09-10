@@ -1,6 +1,7 @@
 "use client";
 
 import {useState} from "react";
+import axios from "axios";
 import {useRouter} from "next/navigation";
 import {Save, X} from "lucide-react";
 
@@ -11,6 +12,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {ConfirmDialog} from "@/components/ui/confirm-dialog";
 import {useFeedback} from "@/components/ui/feedback-bar";
 import {ChargeType, ProductCharge, Status} from "@/types/product-charge";
+import {productChargeService} from "@/services/product-charge-service";
 
 
 interface ProductChargeFormProps {
@@ -147,12 +149,27 @@ export function ProductChargeForm({
         setShowConfirmDialog(true);
     }
 
-    function confirmSave() {
+    async function confirmSave() {
         setLoading(true);
 
-        // Simulate API request.
-        setTimeout(() => {
-            setLoading(false);
+        try {
+            if (!form.type) return;
+
+            const payload = {
+                code: form.code.trim(),
+                name: form.name.trim(),
+                type: form.type,
+                status: form.status,
+                description: form.description.trim() || undefined,
+            };
+
+            if (isEdit) {
+                if (!charge) throw new Error("Charge information is missing.");
+                await productChargeService.updateProductCharge(charge.id, payload);
+            } else {
+                await productChargeService.createProductCharge(payload);
+            }
+
             setShowConfirmDialog(false);
 
             showFeedback(
@@ -164,7 +181,15 @@ export function ProductChargeForm({
             );
 
             router.push("/products");
-        }, 800);
+        } catch (error: unknown) {
+            console.error("Failed to save product charge:", error);
+            const message = axios.isAxiosError<{message?: string}>(error)
+                ? error.response?.data?.message || "Please try again."
+                : error instanceof Error ? error.message : "Please try again.";
+            showFeedback("error", isEdit ? "Unable to update charge" : "Unable to create charge", message);
+        } finally {
+            setLoading(false);
+        }
     }
 
     function handleCancel() {

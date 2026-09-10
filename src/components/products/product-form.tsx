@@ -1,6 +1,7 @@
 "use client";
 
 import {useState} from "react";
+import axios from "axios";
 import {useRouter} from "next/navigation";
 import {Save, X} from "lucide-react";
 
@@ -17,6 +18,7 @@ import type {
     ProductFormData,
     ProductStatus,
 } from "@/types/product";
+import {productService} from "@/services/product-service";
 
 interface ProductFormProps {
     mode: "create" | "edit";
@@ -132,11 +134,32 @@ export function ProductForm({
         setShowConfirmDialog(true);
     }
 
-    function confirmSave() {
+    async function confirmSave() {
         setLoading(true);
 
-        // Simulate API request.
-        setTimeout(() => {
+        try {
+            if (!form.paymentTerm) {
+                return;
+            }
+
+            const payload = {
+                code: form.code.trim(),
+                name: form.name.trim(),
+                paymentTerm: form.paymentTerm,
+                status: form.status,
+                description: form.description?.trim() || undefined,
+            };
+
+            if (isEdit) {
+                if (!product) {
+                    throw new Error("Product information is missing.");
+                }
+
+                await productService.updateProduct(product.id, payload);
+            } else {
+                await productService.createProduct(payload);
+            }
+
             setLoading(false);
             setShowConfirmDialog(false);
 
@@ -156,7 +179,23 @@ export function ProductForm({
 
 
             router.push("/products");
-        }, 800);
+        } catch (error: unknown) {
+            console.error("Failed to save product:", error);
+
+            const message = axios.isAxiosError<{message?: string}>(error)
+                ? error.response?.data?.message || "Please try again."
+                : error instanceof Error
+                    ? error.message
+                    : "Please try again.";
+
+            showFeedback(
+                "error",
+                isEdit ? "Unable to update product" : "Unable to create product",
+                message,
+            );
+        } finally {
+            setLoading(false);
+        }
     }
 
     function handleCancel() {

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import {
     Package,
     Plus,
     Search,
+    Loader2,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,20 +20,20 @@ import { ProductTable } from "@/components/products/product-table";
 import { ProductChargeTable } from "@/components/products/product-charge-table";
 
 import {
-    mockProducts,
-    mockProductCharges,
     mockProductChargeRecords,
 } from "./mock-data";
 
 import type { Product } from "@/types/product";
 import type { ProductCharge } from "@/types/product-charge";
+import {productService} from "@/services/product-service";
+import {productChargeService} from "@/services/product-charge-service";
 
 
 export default function ProductsPage() {
     const { showFeedback } = useFeedback();
 
-    const [products, setProducts] = useState(mockProducts);
-    const [charges, setCharges] = useState(mockProductCharges);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [charges, setCharges] = useState<ProductCharge[]>([]);
 
     const [productSearch, setProductSearch] = useState("");
     const [chargeSearch, setChargeSearch] = useState("");
@@ -57,6 +58,46 @@ export default function ProductsPage() {
 
     const [actionLoading, setActionLoading] =
         useState(false);
+    const [loading, setLoading] = useState(true);
+    const [chargesLoading, setChargesLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [chargesError, setChargesError] = useState("");
+
+    useEffect(() => {
+        async function loadProducts() {
+            try {
+                setLoading(true);
+                setError("");
+                const response = await productService.getProducts();
+                setProducts(response.data);
+            } catch (error) {
+                console.error("Failed to load products:", error);
+                setError("Unable to load products. Please try again.");
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        loadProducts();
+    }, []);
+
+    useEffect(() => {
+        async function loadCharges() {
+            try {
+                setChargesLoading(true);
+                setChargesError("");
+                const response = await productChargeService.getProductCharges();
+                setCharges(response.data);
+            } catch (error) {
+                console.error("Failed to load product charges:", error);
+                setChargesError("Unable to load charge definitions. Please try again.");
+            } finally {
+                setChargesLoading(false);
+            }
+        }
+
+        loadCharges();
+    }, []);
 
     const filteredProducts = useMemo(() => {
         const search = productSearch.toLowerCase().trim();
@@ -92,9 +133,9 @@ export default function ProductsPage() {
         });
     }, [charges, chargeSearch, chargeStatus]);
 
-    const getChargeCount = (productId: string) => {
+    const getChargeCount = (productId: number) => {
         return mockProductChargeRecords.filter(
-            (record) => String(record.productId) === productId,
+            (record) => record.productId === productId,
         ).length;
     };
 
@@ -120,29 +161,30 @@ export default function ProductsPage() {
         setShowChargeDialog(true);
     };
 
-    const confirmProductStatus = () => {
+    const confirmProductStatus = async () => {
         if (!selectedProduct) return;
 
         setActionLoading(true);
 
-        setTimeout(() => {
+        try {
             const newStatus =
                 selectedProduct.status === "active"
                     ? "inactive"
                     : "active";
 
+            const updatedProduct = await productService.updateProduct(
+                selectedProduct.id,
+                {status: newStatus},
+            );
+
             setProducts((current) =>
                 current.map((product) =>
                     product.id === selectedProduct.id
-                        ? {
-                            ...product,
-                            status: newStatus,
-                        }
+                        ? updatedProduct
                         : product,
                 ),
             );
 
-            setActionLoading(false);
             setShowProductDialog(false);
 
             showFeedback(
@@ -158,32 +200,38 @@ export default function ProductsPage() {
             );
 
             setSelectedProduct(null);
-        }, 700);
+        } catch (error) {
+            console.error("Failed to update product status:", error);
+            showFeedback("error", "Unable to update product", "Please try again.");
+        } finally {
+            setActionLoading(false);
+        }
     };
 
-    const confirmChargeStatus = () => {
+    const confirmChargeStatus = async () => {
         if (!selectedCharge) return;
 
         setActionLoading(true);
 
-        setTimeout(() => {
+        try {
             const newStatus =
                 selectedCharge.status === "active"
                     ? "inactive"
                     : "active";
 
+            const updatedCharge = await productChargeService.updateProductCharge(
+                selectedCharge.id,
+                {status: newStatus},
+            );
+
             setCharges((current) =>
                 current.map((charge) =>
                     charge.id === selectedCharge.id
-                        ? {
-                            ...charge,
-                            status: newStatus,
-                        }
+                        ? updatedCharge
                         : charge,
                 ),
             );
 
-            setActionLoading(false);
             setShowChargeDialog(false);
 
             showFeedback(
@@ -199,31 +247,34 @@ export default function ProductsPage() {
             );
 
             setSelectedCharge(null);
-        }, 700);
+        } catch (error) {
+            console.error("Failed to update charge status:", error);
+            showFeedback("error", "Unable to update charge", "Please try again.");
+        } finally {
+            setActionLoading(false);
+        }
     };
 
-    const handleProductDelete = (product: Product) => {
-        setProducts((current) =>
-            current.filter((item) => item.id !== product.id),
-        );
-
-        showFeedback(
-            "success",
-            "Product deleted",
-            `${product.name} has been deleted successfully.`,
-        );
+    const handleProductDelete = async (product: Product) => {
+        try {
+            await productService.deleteProduct(product.id);
+            setProducts((current) => current.filter((item) => item.id !== product.id));
+            showFeedback("success", "Product deleted", `${product.name} has been deleted successfully.`);
+        } catch (error) {
+            console.error("Failed to delete product:", error);
+            showFeedback("error", "Unable to delete product", "Please try again.");
+        }
     };
 
-    const handleChargeDelete = (charge: ProductCharge) => {
-        setCharges((current) =>
-            current.filter((item) => item.id !== charge.id),
-        );
-
-        showFeedback(
-            "success",
-            "Charge deleted",
-            `${charge.name} has been deleted successfully.`,
-        );
+    const handleChargeDelete = async (charge: ProductCharge) => {
+        try {
+            await productChargeService.deleteProductCharge(charge.id);
+            setCharges((current) => current.filter((item) => item.id !== charge.id));
+            showFeedback("success", "Charge deleted", `${charge.name} has been deleted successfully.`);
+        } catch (error) {
+            console.error("Failed to delete charge:", error);
+            showFeedback("error", "Unable to delete charge", "Please try again.");
+        }
     };
 
     return (
@@ -328,12 +379,13 @@ export default function ProductsPage() {
                     </div>
                 </div>
 
-                <ProductTable
-                    products={filteredProducts}
-                    getChargeCount={getChargeCount}
-                    onDeactivate={handleProductStatus}
-                    onDelete={handleProductDelete}
-                />
+                {loading ? (
+                    <div className="flex min-h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted"/></div>
+                ) : error ? (
+                    <div className="p-6 text-center"><p className="text-sm text-error">{error}</p><Button className="mt-4" variant="outline" size="sm" onClick={() => window.location.reload()}>Try Again</Button></div>
+                ) : (
+                    <ProductTable products={filteredProducts} getChargeCount={getChargeCount} onDeactivate={handleProductStatus} onDelete={handleProductDelete}/>
+                )}
             </section>
 
             {/* Charge definitions */}
@@ -399,11 +451,13 @@ export default function ProductsPage() {
                     </div>
                 </div>
 
-                <ProductChargeTable
-                    charges={filteredCharges}
-                    onDeactivate={handleChargeStatus}
-                    onDelete={handleChargeDelete}
-                />
+                {chargesLoading ? (
+                    <div className="flex min-h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted"/></div>
+                ) : chargesError ? (
+                    <div className="p-6 text-center"><p className="text-sm text-error">{chargesError}</p></div>
+                ) : (
+                    <ProductChargeTable charges={filteredCharges} onDeactivate={handleChargeStatus} onDelete={handleChargeDelete}/>
+                )}
             </section>
 
             {/* Product status confirmation */}

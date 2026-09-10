@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import axios from "axios";
 import { useParams, useRouter } from "next/navigation";
 import {
     ArrowLeft,
@@ -13,10 +14,9 @@ import {
     Phone,
     Trash2,
     User,
-    Users, UserX,
+    Users, UserX, Loader2,
 } from "lucide-react";
 
-import { mockClients } from "../mock-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -30,7 +30,9 @@ import {
 import {
     useFeedback,
 } from "@/components/ui/feedback-bar";
-import {useState} from "react";
+import {useEffect, useState} from "react";
+import {clientService} from "@/services/client-service";
+import type {Client} from "@/types/client";
 
 function formatCurrency(value: number) {
     return new Intl.NumberFormat("en-MW", {
@@ -48,6 +50,14 @@ function formatDate(value: string) {
         month: "short",
         year: "numeric",
     }).format(new Date(value));
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+    if (axios.isAxiosError<{ message?: string }>(error)) {
+        return error.response?.data?.message || fallback;
+    }
+
+    return error instanceof Error ? error.message : fallback;
 }
 
 function DetailItem({
@@ -90,10 +100,51 @@ export default function ClientShowPage() {
     const [actionLoading, setActionLoading] =
         useState(false);
     const clientId = Number(params.id);
+    const [client, setClient] = useState<Client | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    const client = mockClients.find(
-        (item) => item.id === clientId
-    );
+    useEffect(() => {
+        async function loadClient() {
+            if (!clientId || Number.isNaN(clientId)) {
+                setError("Invalid client ID.");
+                setLoading(false);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                setError("");
+                setClient(await clientService.getClient(clientId));
+            } catch (error: unknown) {
+                console.error("Failed to load client:", error);
+                setError(
+                    getErrorMessage(error, "Unable to load client information."),
+                );
+                setClient(null);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        loadClient();
+    }, [clientId]);
+
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <Link href="/clients" className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-foreground">
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Clients
+                </Link>
+
+                <Card className="p-10 text-center">
+                    <Loader2 className="mx-auto h-7 w-7 animate-spin text-muted" />
+                    <p className="mt-3 text-sm text-muted">Loading client information...</p>
+                </Card>
+            </div>
+        );
+    }
 
     if (!client) {
         return (
@@ -118,8 +169,8 @@ export default function ClientShowPage() {
                     </h2>
 
                     <p className="mt-1 text-sm text-muted">
-                        The client you are looking for does not exist or has
-                        been removed.
+                        {error ||
+                            "The client you are looking for does not exist or has been removed."}
                     </p>
 
                     <div className="mt-5">
@@ -142,12 +193,14 @@ export default function ClientShowPage() {
         .filter(Boolean)
         .join(" ");
 
-    const confirmDeactivate = () => {
+    const confirmDeactivate = async () => {
         setActionLoading(true);
 
-        // Simulate API request
-        setTimeout(() => {
-            setActionLoading(false);
+        try {
+            const updatedClient = await clientService.updateClient(client.id, {
+                status: "inactive",
+            });
+            setClient(updatedClient);
             setShowDeactivateDialog(false);
 
             showFeedback(
@@ -155,15 +208,23 @@ export default function ClientShowPage() {
                 "Client deactivated",
                 `${fullName} has been deactivated successfully.`,
             );
-        }, 800);
+        } catch (error: unknown) {
+            console.error("Failed to deactivate client:", error);
+            showFeedback(
+                "error",
+                "Unable to deactivate client",
+                getErrorMessage(error, "Please try again."),
+            );
+        } finally {
+            setActionLoading(false);
+        }
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         setActionLoading(true);
 
-        // Simulate API request
-        setTimeout(() => {
-            setActionLoading(false);
+        try {
+            await clientService.deleteClient(client.id);
             setShowDeleteDialog(false);
 
             showFeedback(
@@ -172,10 +233,17 @@ export default function ClientShowPage() {
                 `${fullName} has been deleted successfully.`,
             );
 
-            setTimeout(() => {
-                router.push("/clients");
-            }, 1000);
-        }, 800);
+            router.push("/clients");
+        } catch (error: unknown) {
+            console.error("Failed to delete client:", error);
+            showFeedback(
+                "error",
+                "Unable to delete client",
+                getErrorMessage(error, "Please try again."),
+            );
+        } finally {
+            setActionLoading(false);
+        }
     };
 
     return (
@@ -499,7 +567,7 @@ export default function ClientShowPage() {
                             Loan Summary
                         </h2>
                         <p className="text-xs text-muted">
-                            Overview of the client's loan activity
+                            Overview of the client&apos;s loan activity
                         </p>
                     </div>
                 </div>

@@ -43,11 +43,11 @@ export function GroupTable({
             header: "Group",
             render: (group: Group) => (
                 <div className="min-w-[190px]">
-                    <div className="text-xs font-semibold text-foreground">
+                    <div className="font-semibold text-foreground">
                         {group.title}
                     </div>
 
-                    <div className="mt-0.5 text-[10px] text-muted">
+                    <div className="mt-0.5    text-muted">
                         {group.branchName}
                     </div>
                 </div>
@@ -59,11 +59,11 @@ export function GroupTable({
             header: "Chair",
             render: (group: Group) => (
                 <div>
-                    <div className="text-xs font-medium text-foreground">
+                    <div className="font-medium text-foreground">
                         {group.chair}
                     </div>
 
-                    <div className="mt-0.5 text-[10px] text-muted">
+                    <div className="mt-0.5    text-muted">
                         {group.cellphone}
                     </div>
                 </div>
@@ -75,11 +75,11 @@ export function GroupTable({
             header: "Vice Chair",
             render: (group: Group) => (
                 <div>
-                    <div className="text-xs font-medium text-foreground">
+                    <div className="  font-medium text-foreground">
                         {group.viceChair}
                     </div>
 
-                    <div className="mt-0.5 text-[10px] text-muted">
+                    <div className="mt-0.5    text-muted">
                         {group.viceChairCell}
                     </div>
                 </div>
@@ -91,7 +91,7 @@ export function GroupTable({
             header: "Members",
             className: "text-right",
             render: (group: Group) => (
-                <span className="text-xs font-medium text-foreground">
+                <span className="  font-medium text-foreground">
           {group.memberCount.toLocaleString()}
         </span>
             ),
@@ -107,7 +107,7 @@ export function GroupTable({
                             ? "success"
                             : "neutral"
                     }
-                    className="px-2 py-0.5 text-[10px]"
+                    className="px-2 py-0.5   "
                 >
                     {group.status === "active"
                         ? "Active"

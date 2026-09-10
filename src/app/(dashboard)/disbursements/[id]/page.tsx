@@ -1,707 +1,128 @@
 "use client";
-
+import {useEffect, useState} from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import {
-    ArrowLeft,
-    Banknote,
-    CalendarDays,
-    CheckCircle2,
-    Clock3,
-    Edit,
-    FileText,
-    MapPin,
-    User,
-    Wallet,
-    XCircle,
-} from "lucide-react";
+import {useParams} from "next/navigation";
+import {ArrowLeft, Banknote, CheckCircle2, Edit, Loader2, XCircle} from "lucide-react";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
+import {Card} from "@/components/ui/card";
+import {ConfirmDialog} from "@/components/ui/confirm-dialog";
+import {PageHeader} from "@/components/ui/page-header";
+import {useFeedback} from "@/components/ui/feedback-bar";
+import {disbursementService} from "@/services/disbursement-service";
+import type {Disbursement} from "@/types/disbursement";
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
+const money = (n: number) => new Intl.NumberFormat("en-MW", {
+    style: "currency",
+    currency: "MWK",
+    maximumFractionDigits: 0
+}).format(n || 0);
+const date = (v?: string | null) => v ? new Date(v).toLocaleDateString("en-GB") : "—";
+export default function Page() {
+    const {id} = useParams<{ id: string }>();
+    const {showFeedback} = useFeedback();
+    const [item, setItem] = useState<Disbursement | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [action, setAction] = useState<"approve" | "reject" | null>(null);
+    const [processing, setProcessing] = useState(false);
+    useEffect(() => {
+        disbursementService.getDisbursement(Number(id)).then(setItem).catch(console.error).finally(() => setLoading(false));
+    }, [id]);
 
-import { mockDisbursements, mockDisbursementCharges } from "../mock-data";
-import { mockClients } from "@/app/(dashboard)/clients/mock-data";
-import { mockProducts } from "@/app/(dashboard)/products/mock-data";
-import { mockBranches } from "@/app/(dashboard)/branches/mock-data";
+    async function confirm() {
+        if (!item || !action) return;
+        setProcessing(true);
+        try {
 
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat("en-MW", {
-        style: "currency",
-        currency: "MWK",
-        maximumFractionDigits: 0,
-    }).format(value);
-}
-
-function formatDate(value?: string) {
-    if (!value) return "—";
-
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(value));
-}
-
-function getStatusVariant(
-    status: string,
-): "success" | "warning" | "danger" | "neutral" {
-    switch (status) {
-        case "disbursed":
-            return "success";
-
-        case "approved":
-            return "warning";
-
-        case "cancelled":
-            return "danger";
-
-        default:
-            return "neutral";
-    }
-}
-
-function getStatusLabel(status: string) {
-    switch (status) {
-        case "pending":
-            return "Pending";
-
-        case "approved":
-            return "Approved";
-
-        case "disbursed":
-            return "Disbursed";
-
-        case "cancelled":
-            return "Cancelled";
-
-        default:
-            return status;
-    }
-}
-
-function getClientName(clientId: number) {
-    const client = mockClients.find((item) => item.id === clientId);
-
-    if (!client) return "Unknown Client";
-
-    return `${client.firstName} ${client.middleName} ${client.lastName}`.replace(
-        /\s+/g,
-        " ",
-    );
-}
-
-function getProductName(productId: number) {
-    return (
-        mockProducts.find((item) => item.id === productId)?.name ??
-        "Unknown Product"
-    );
-}
-
-function getBranchName(branchId: number) {
-    return (
-        mockBranches.find((item) => item.id === branchId)?.name ??
-        "Unknown Branch"
-    );
-}
-
-export default function DisbursementDetailsPage() {
-    const params = useParams();
-    const id = Number(params.id);
-
-    const disbursement = mockDisbursements.find(
-        (item) => item.id === id,
-    );
-
-    if (!disbursement) {
-        return (
-            <div className="space-y-6">
-                <PageHeader
-                    title="Disbursement Not Found"
-                    description="The requested disbursement could not be found."
-                    icon={Banknote}
-                />
-
-                <Card className="p-8 text-center">
-                    <p className="text-sm text-muted">
-                        The disbursement you are looking for does not exist.
-                    </p>
-
-                    <Button
-                        variant="outline"
-                        className="mt-4"
-                        asChild
-                    >
-                        <Link href="/disbursements" className="flex items-center gap-2 whitespace-nowrap">
-                            <ArrowLeft className="h-4 w-4" />
-                            Back to Disbursements
-                        </Link>
-                    </Button>
-                </Card>
-            </div>
-        );
+            if (action === 'approve') {
+                const updated = await disbursementService.approveDisbursement(item.id);
+                setItem({...item, ...updated});
+                setAction(null);
+                showFeedback("success", "Disbursement Approved", "Disbursement has been approved successfully.");
+            } else if (action === "reject") {
+                const updated = await disbursementService.rejectDisbursement(item.id);
+                setItem({...item, ...updated});
+                setAction(null);
+                showFeedback("success", "Disbursement Rejected", "Disbursement has been rejected.");
+            }
+        } catch {
+            showFeedback("error", "Update failed", "Please try again.");
+        } finally {
+            setProcessing(false);
+        }
     }
 
-    const client = mockClients.find(
-        (item) => item.id === disbursement.clientId,
-    );
-
-    const product = mockProducts.find(
-        (item) => item.id === disbursement.productId,
-    );
-
-    const branch = mockBranches.find(
-        (item) => item.id === disbursement.branchId,
-    );
-
-    const charges = mockDisbursementCharges.filter(
-        (item) => item.disbursementId === disbursement.id,
-    );
-
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <PageHeader
-                title={disbursement.disbursementNumber}
-                description="View disbursement details, charges and transaction history."
-                icon={Banknote}
-                action={
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                        >
-                            <Link href="/disbursements" className="flex items-center gap-2 whitespace-nowrap">
-                                <ArrowLeft className="h-4 w-4" />
-                                Back
-                            </Link>
-                        </Button>
-
-                        {disbursement.status !== "disbursed" &&
-                            disbursement.status !== "cancelled" && (
-                                <Button
-                                    variant="primary"
-                                    size="sm"
-                                    asChild
-                                >
-                                    <Link
-                                        href={`/disbursements/${disbursement.id}/edit`}
-                                    >
-                                        <Edit className="h-4 w-4" />
-                                        Edit
-                                    </Link>
-                                </Button>
-                            )}
-                    </div>
-                }
-            />
-
-            {/* Status Banner */}
-            <Card className="p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <Banknote className="h-5 w-5" />
-                        </div>
-
-                        <div>
-                            <p className="text-sm font-medium text-foreground">
-                                Disbursement Status
-                            </p>
-
-                            <div className="mt-1">
-                                <Badge
-                                    variant={getStatusVariant(
-                                        disbursement.status,
-                                    )}
-                                >
-                                    {getStatusLabel(
-                                        disbursement.status,
-                                    )}
-                                </Badge>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="text-left sm:text-right">
-                        <p className="text-xs text-muted">
-                            Total Loan Amount
-                        </p>
-
-                        <p className="mt-1 text-2xl font-bold text-primary">
-                            {formatCurrency(
-                                disbursement.totalAmount,
-                            )}
-                        </p>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Loan Summary */}
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card className="p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <Wallet className="h-5 w-5" />
-                        </div>
-
-                        <div>
-                            <p className="text-xs text-muted">
-                                Principal Amount
-                            </p>
-
-                            <p className="mt-1 text-lg font-semibold text-foreground">
-                                {formatCurrency(
-                                    disbursement.principalAmount,
-                                )}
-                            </p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/10 text-secondary">
-                            <FileText className="h-5 w-5" />
-                        </div>
-
-                        <div>
-                            <p className="text-xs text-muted">
-                                Total Charges
-                            </p>
-
-                            <p className="mt-1 text-lg font-semibold text-foreground">
-                                {formatCurrency(
-                                    disbursement.totalCharges,
-                                )}
-                            </p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-700">
-                            <Banknote className="h-5 w-5" />
-                        </div>
-
-                        <div>
-                            <p className="text-xs text-muted">
-                                Total Amount
-                            </p>
-
-                            <p className="mt-1 text-lg font-semibold text-foreground">
-                                {formatCurrency(
-                                    disbursement.totalAmount,
-                                )}
-                            </p>
-                        </div>
-                    </div>
-                </Card>
+    if (loading) return <Loader2 className="h-7 w-7 animate-spin"/>;
+    if (!item) return <PageHeader title="Disbursement Not Found" description="Could not load disbursement."
+                                  icon={Banknote}/>;
+    const c = item.client, p = item.product;
+    return <div className="space-y-6"><PageHeader title={item.disbursementNumber || `Disbursement #${item.id}`}
+                                                  description="Detailed disbursement summary" icon={Banknote}
+                                                  action={<div className="flex gap-2"><Button variant="outline" asChild><Link
+                                                      href="/disbursements"
+                                                      className="flex items-center gap-2 whitespace-nowrap"><ArrowLeft/>Back</Link></Button>{item.status === "pending" && <>
+                                                      <Button onClick={() => setAction("approve")}><CheckCircle2/>Approve</Button><Button
+                                                      variant="danger" onClick={() => setAction("reject")}><XCircle/>Reject</Button><Button
+                                                      asChild><Link href={`/disbursements/${item.id}/edit`}
+                                                                    className="flex items-center gap-2 whitespace-nowrap"><Edit/>Edit</Link></Button></>}
+                                                  </div>}/>
+        <Card className="p-6">
+            <div className="mb-5 flex justify-between"><h2 className="text-lg font-semibold">Disbursement Summary</h2>
+                <Badge
+                    variant={item.status === "disbursed" ? "success" : item.status === "approved" ? "warning" : item.status === "rejected" || item.status === "cancelled" ? "danger" : "neutral"}>{item.status}</Badge>
             </div>
-
-            {/* Client & Product */}
-            <div className="grid gap-6 lg:grid-cols-2">
-                <Card className="p-6">
-                    <div className="mb-5 flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <User className="h-4 w-4" />
-                        </div>
-
-                        <div>
-                            <h2 className="text-sm font-semibold text-foreground">
-                                Client Information
-                            </h2>
-
-                            <p className="text-xs text-muted">
-                                Borrower associated with this disbursement
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <p className="text-xs text-muted">
-                                Client Name
-                            </p>
-
-                            <p className="mt-1 text-sm font-medium text-foreground">
-                                {client
-                                    ? `${client.firstName} ${client.middleName} ${client.lastName}`.replace(
-                                        /\s+/g,
-                                        " ",
-                                    )
-                                    : "Unknown Client"}
-                            </p>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <p className="text-xs text-muted">
-                                    Client Number
-                                </p>
-
-                                <p className="mt-1 text-sm font-medium text-foreground">
-                                    {client?.clientNumber ?? "—"}
-                                </p>
-                            </div>
-
-                            <div>
-                                <p className="text-xs text-muted">
-                                    National ID
-                                </p>
-
-                                <p className="mt-1 text-sm font-medium text-foreground">
-                                    {client?.nationalId ?? "—"}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <p className="text-xs text-muted">
-                                    Phone
-                                </p>
-
-                                <p className="mt-1 text-sm font-medium text-foreground">
-                                    {client?.phone ?? "—"}
-                                </p>
-                            </div>
-
-                            <div>
-                                <p className="text-xs text-muted">
-                                    Group
-                                </p>
-
-                                <p className="mt-1 text-sm font-medium text-foreground">
-                                    {client?.groupName ?? "—"}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="p-6">
-                    <div className="mb-5 flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary/10 text-secondary">
-                            <Banknote className="h-4 w-4" />
-                        </div>
-
-                        <div>
-                            <h2 className="text-sm font-semibold text-foreground">
-                                Product Information
-                            </h2>
-
-                            <p className="text-xs text-muted">
-                                Loan product used for this disbursement
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <p className="text-xs text-muted">
-                                Product
-                            </p>
-
-                            <p className="mt-1 text-sm font-medium text-foreground">
-                                {product?.name ?? "Unknown Product"}
-                            </p>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <p className="text-xs text-muted">
-                                    Product Code
-                                </p>
-
-                                <p className="mt-1 text-sm font-medium text-foreground">
-                                    {product?.code ?? "—"}
-                                </p>
-                            </div>
-
-                            <div>
-                                <p className="text-xs text-muted">
-                                    Payment Term
-                                </p>
-
-                                <p className="mt-1 text-sm font-medium capitalize text-foreground">
-                                    {product?.paymentTerm ?? "—"}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-start gap-2">
-                            <MapPin className="mt-0.5 h-4 w-4 text-muted" />
-
-                            <div>
-                                <p className="text-xs text-muted">
-                                    Branch
-                                </p>
-
-                                <p className="mt-1 text-sm font-medium text-foreground">
-                                    {branch?.name ??
-                                        getBranchName(
-                                            disbursement.branchId,
-                                        )}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <D l="Client" v={c ? `${c.firstName} ${c.lastName}` : String(item.clientId)}/>
+                <D l="Product" v={p?.name || String(item.productId)}/><D l="Principal" v={money(item.principalAmount)}/>
+                <D l="Total Charges" v={money(item.totalCharges)}/><D l="Total Amount" v={money(item.totalAmount)}/>
+                <D l="Application Date" v={date(item.applicationDate)}/>
+                <D l="Approval Date" v={date(item.approvalDate)}/>
+                <D l="Disbursement Date" v={date(item.disbursementDate)}/>
+                <D l="Tenure Units" v={String(item.tenureUnits)}/>
+                <D l="Tenure Units" v={String(item.tenure)}/>
             </div>
-
-            {/* Dates */}
-            <Card className="p-6">
-                <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <CalendarDays className="h-4 w-4" />
-                    </div>
-
-                    <div>
-                        <h2 className="text-sm font-semibold text-foreground">
-                            Disbursement Dates
-                        </h2>
-
-                        <p className="text-xs text-muted">
-                            Important dates associated with the loan
-                        </p>
-                    </div>
+        </Card>
+        <div className="grid gap-6 lg:grid-cols-2"><Card className="p-6"><h2
+            className="mb-4 text-lg font-semibold">Client Details</h2><D l="Full Name"
+                                                                         v={c ? `${c.firstName} ${c.middleName || ""} ${c.lastName}`.replace(/\s+/g, " ") : "—"}/><D
+            l="Client Number" v={c?.clientNumber || "—"}/><D l="National ID" v={c?.nationalId || "—"}/><D l="Phone"
+                                                                                                          v={c?.phone || "—"}/><D
+            l="Email" v={c?.email || "—"}/></Card><Card className="p-6"><h2
+            className="mb-4 text-lg font-semibold">Branch & Group</h2><D l="Branch"
+                                                                         v={c?.branch ? `${c.branch.name} (${c.branch.branchCode})` : c?.branchName || "—"}/><D
+            l="Manager" v={c?.branch?.manager || "—"}/><D l="Location" v={c?.branch?.location || "—"}/><D l="Group"
+                                                                                                          v={c?.group?.title || c?.groupName || "—"}/><D
+            l="Group Chair" v={c?.group?.chair || "—"}/></Card></div>
+        <Card className="p-6"><h2 className="mb-4 text-lg font-semibold">Product Details</h2>
+            <div className="grid gap-4 sm:grid-cols-2"><D l="Name" v={p?.name || "—"}/><D l="Code"
+                                                                                          v={p?.code || "—"}/><D
+                l="Payment Term" v={p?.paymentTerm || "—"}/><D l="Status" v={p?.status || "—"}/><D l="Description"
+                                                                                                   v={p?.description || "—"}/><D
+                l="Created By" v={p?.createdBy || "—"}/></div>
+        </Card>
+        <Card className="p-6"><h2 className="mb-4 text-lg font-semibold">Charges &
+            Calculation</h2>{item.charges?.length ? item.charges.map(x => {
+            const pc = x.productChargeRecord?.productCharge;
+            const rate = x.productChargeRecord?.value ?? x.value;
+            const amount = pc?.type === "percentage" ? item.principalAmount * rate / 100 : rate;
+            return <div className="mb-3 rounded-lg border p-4" key={x.id}>
+                <div className="grid gap-3 sm:grid-cols-4"><D l="Charge"
+                                                              v={pc?.name || `Charge #${x.productChargeRecordId}`}/><D
+                    l="Code" v={pc?.code || "—"}/><D l="Type"
+                                                     v={pc?.type === "percentage" ? "Percentage" : "Fixed Amount"}/><D
+                    l="Rate" v={pc?.type === "percentage" ? `${rate}%` : money(rate)}/><D l="Amount" v={money(amount)}/>
                 </div>
+                <p className="mt-2 text-sm text-muted">{x.description || pc?.description || "No description"}</p></div>
+        }) : <p className="text-sm text-muted">No charges recorded.</p>}</Card>
+        <ConfirmDialog open={action !== null}
+                       title={action === "approve" ? "Approve Disbursement?" : "Reject Disbursement?"}
+                       description={action === "approve" ? "Approve this pending disbursement?" : "Reject and cancel this pending disbursement?"}
+                       confirmText={action === "approve" ? "Approve" : "Reject"}
+                       variant={action === "approve" ? "save" : "delete"} loading={processing} onConfirm={confirm}
+                       onCancel={() => setAction(null)}/></div>;
+}
 
-                <div className="grid gap-5 md:grid-cols-3">
-                    <div>
-                        <p className="text-xs text-muted">
-                            Application Date
-                        </p>
-
-                        <p className="mt-1 text-sm font-medium text-foreground">
-                            {formatDate(
-                                disbursement.applicationDate,
-                            )}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p className="text-xs text-muted">
-                            Approval Date
-                        </p>
-
-                        <p className="mt-1 text-sm font-medium text-foreground">
-                            {formatDate(
-                                disbursement.approvalDate,
-                            )}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p className="text-xs text-muted">
-                            Disbursement Date
-                        </p>
-
-                        <p className="mt-1 text-sm font-medium text-foreground">
-                            {formatDate(
-                                disbursement.disbursementDate,
-                            )}
-                        </p>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Historical Charges */}
-            <Card className="overflow-hidden">
-                <div className="border-b border-border p-6">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary/10 text-secondary">
-                            <FileText className="h-4 w-4" />
-                        </div>
-
-                        <div>
-                            <h2 className="text-sm font-semibold text-foreground">
-                                Disbursement Charges
-                            </h2>
-
-                            <p className="text-xs text-muted">
-                                Charges captured at the time of
-                                disbursement
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[700px]">
-                        <thead>
-                        <tr className="border-b border-border bg-surface-low">
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-muted">
-                                Charge
-                            </th>
-
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-muted">
-                                Code
-                            </th>
-
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-muted">
-                                Type
-                            </th>
-
-                            <th className="px-6 py-3 text-right text-xs font-semibold text-muted">
-                                Rate / Value
-                            </th>
-
-                            <th className="px-6 py-3 text-right text-xs font-semibold text-muted">
-                                Amount
-                            </th>
-                        </tr>
-                        </thead>
-
-                        <tbody>
-                        {charges.map((charge) => (
-                            <tr
-                                key={charge.id}
-                                className="border-b border-border last:border-0"
-                            >
-                                <td className="px-6 py-4">
-                                    <p className="text-sm font-medium text-foreground">
-                                        {charge.name}
-                                    </p>
-
-                                    {charge.description && (
-                                        <p className="mt-1 text-xs text-muted">
-                                            {charge.description}
-                                        </p>
-                                    )}
-                                </td>
-
-                                <td className="px-6 py-4 text-sm text-muted">
-                                    {charge.code}
-                                </td>
-
-                                <td className="px-6 py-4">
-                                    <Badge variant="neutral">
-                                        {charge.type ===
-                                        "percentage"
-                                            ? "Percentage"
-                                            : "Fixed Amount"}
-                                    </Badge>
-                                </td>
-
-                                <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
-                                    {charge.type ===
-                                    "percentage"
-                                        ? `${charge.rate}%`
-                                        : formatCurrency(
-                                            charge.rate,
-                                        )}
-                                </td>
-
-                                <td className="px-6 py-4 text-right text-sm font-semibold text-foreground">
-                                    {formatCurrency(
-                                        charge.amount,
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-
-                        {charges.length === 0 && (
-                            <tr>
-                                <td
-                                    colSpan={5}
-                                    className="px-6 py-8 text-center text-sm text-muted"
-                                >
-                                    No charges were recorded for
-                                    this disbursement.
-                                </td>
-                            </tr>
-                        )}
-                        </tbody>
-
-                        <tfoot>
-                        <tr className="bg-surface-low">
-                            <td
-                                colSpan={4}
-                                className="px-6 py-4 text-right text-sm font-semibold text-foreground"
-                            >
-                                Total Charges
-                            </td>
-
-                            <td className="px-6 py-4 text-right text-sm font-bold text-primary">
-                                {formatCurrency(
-                                    disbursement.totalCharges,
-                                )}
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td
-                                colSpan={4}
-                                className="px-6 py-4 text-right text-sm font-bold text-foreground"
-                            >
-                                Total Loan Amount
-                            </td>
-
-                            <td className="px-6 py-4 text-right text-base font-bold text-primary">
-                                {formatCurrency(
-                                    disbursement.totalAmount,
-                                )}
-                            </td>
-                        </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </Card>
-
-            {/* Audit / Notes */}
-            <div className="grid gap-6 lg:grid-cols-2">
-                <Card className="p-6">
-                    <div className="mb-5 flex items-center gap-3">
-                        <Clock3 className="h-5 w-5 text-primary" />
-
-                        <h2 className="text-sm font-semibold text-foreground">
-                            Processing Information
-                        </h2>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <p className="text-xs text-muted">
-                                Created By
-                            </p>
-
-                            <p className="mt-1 text-sm font-medium text-foreground">
-                                {disbursement.createdBy}
-                            </p>
-                        </div>
-
-                        <div>
-                            <p className="text-xs text-muted">
-                                Approved By
-                            </p>
-
-                            <p className="mt-1 text-sm font-medium text-foreground">
-                                {disbursement.approvedBy ?? "—"}
-                            </p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="p-6">
-                    <div className="mb-5 flex items-center gap-3">
-                        <FileText className="h-5 w-5 text-primary" />
-
-                        <h2 className="text-sm font-semibold text-foreground">
-                            Notes
-                        </h2>
-                    </div>
-
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-muted">
-                        {disbursement.notes ||
-                            "No notes were recorded for this disbursement."}
-                    </p>
-                </Card>
-            </div>
-        </div>
-    );
+function D({l, v}: { l: string; v: string }) {
+    return <div className="mb-3"><p className="text-xs text-muted">{l}</p><p
+        className="mt-1 text-sm font-medium">{v}</p></div>
 }

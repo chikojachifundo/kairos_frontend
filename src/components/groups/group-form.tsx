@@ -17,6 +17,7 @@ import type {
     GroupFormData,
     GroupStatus,
 } from "@/types/group";
+import {groupService} from "@/services/group-service";
 
 
 interface Branch {
@@ -136,24 +137,34 @@ export function GroupForm({
         setSaving(true);
 
         try {
-            // API call will be added later
-            await new Promise((resolve) =>
-                setTimeout(resolve, 700),
-            );
+            const payload = {
+                title: formData.title.trim(),
+                chair: formData.chair.trim(),
+                cellphone: formData.cellphone.trim(),
+                viceChair: formData.viceChair.trim(),
+                viceChairCell: formData.viceChairCell.trim(),
+                description: formData.description.trim(),
+                status: formData.status,
+                branchId: formData.branchId,
+            };
 
-            setShowSaveConfirmation(false);
+            if (isEdit && groupId) {
+                await groupService.updateGroup(groupId, payload);
 
-            if (mode === "edit") {
+                setShowSaveConfirmation(false);
+
                 showFeedback(
                     "success",
                     "Group updated successfully",
                     `${formData.title} has been updated successfully.`,
                 );
 
-                if (groupId) {
-                    router.push(`/groups/${groupId}`);
-                }
+                router.push(`/groups/${groupId}`);
             } else {
+                await groupService.createGroup(payload);
+
+                setShowSaveConfirmation(false);
+
                 showFeedback(
                     "success",
                     "Group created successfully",
@@ -162,6 +173,18 @@ export function GroupForm({
 
                 router.push("/groups");
             }
+        } catch (error: any) {
+            console.error("Failed to save group:", error);
+
+            const message =
+                error?.response?.data?.message ||
+                "An error occurred while saving the group. Please try again.";
+
+            showFeedback(
+                "error",
+                "Unable to save group",
+                message,
+            );
         } finally {
             setSaving(false);
         }

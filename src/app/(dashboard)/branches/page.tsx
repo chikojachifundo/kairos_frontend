@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import {LayoutDashboard, Plus} from "lucide-react";
+import {
+    LayoutDashboard,
+    Plus,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -11,82 +14,21 @@ import { BranchFilters } from "@/components/branches/branch-filters";
 import { BranchTable } from "@/components/branches/branch-table";
 
 import type { Branch } from "@/types/branch";
+
+import { branchService } from "@/services/branch-service";
+
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useFeedback } from "@/components/ui/feedback-bar";
 
-const mockBranches: Branch[] = [
-    {
-        id: 1,
-        branchCode: "BR-0001",
-        name: "Head Office",
-        type: "head_office",
-        manager: "James Banda",
-        phone: "+265 888 123 456",
-        email: "headoffice@company.com",
-        location: "Blantyre",
-        activeClients:40,
-        activeLoans:36,
-        status: "active",
-    },
-    {
-        id: 2,
-        branchCode: "BR-0002",
-        name: "Lilongwe Branch",
-        type: "branch",
-        manager: "Grace Phiri",
-        phone: "+265 999 234 567",
-        email: "lilongwe@company.com",
-        location: "Lilongwe",
-        activeClients:40,
-        activeLoans:36,
-        status: "active",
-    },
-    {
-        id: 3,
-        branchCode: "BR-0003",
-        name: "Mzuzu Branch",
-        type: "branch",
-        manager: "Peter Mbewe",
-        phone: "+265 888 345 678",
-        email: "mzuzu@company.com",
-        location: "Mzuzu",
-        activeClients:40,
-        activeLoans:36,
-        status: "active",
-    },
-    {
-        id: 4,
-        branchCode: "BR-0004",
-        name: "Zomba Branch",
-        type: "branch",
-        manager: "Mary Chirwa",
-        phone: "+265 999 456 789",
-        email: "zomba@company.com",
-        location: "Zomba",
-        activeClients:40,
-        activeLoans:36,
-        status: "active",
-    },
-    {
-        id: 5,
-        branchCode: "BR-0005",
-        name: "Mangochi Branch",
-        type: "regional",
-        manager: "Andrew Kumwenda",
-        phone: "+265 888 567 890",
-        email: "mangochi@company.com",
-        location: "Mangochi",
-        activeClients:40,
-        activeLoans:36,
-        status: "inactive",
-    },
-];
-
 export default function BranchesPage() {
     const { showFeedback } = useFeedback();
+
+    const [branches, setBranches] = useState<Branch[]>([]);
+
     const [search, setSearch] = useState("");
     const [type, setType] = useState("");
     const [status, setStatus] = useState("");
+
     const [selectedBranch, setSelectedBranch] =
         useState<Branch | null>(null);
 
@@ -99,42 +41,106 @@ export default function BranchesPage() {
     const [deleting, setDeleting] = useState(false);
     const [deactivating, setDeactivating] = useState(false);
 
-    const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const filteredBranches = useMemo(() => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+
+    /**
+     * Load branches from Laravel API
+     */
+    async function loadBranches(page = currentPage) {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const response =
+                await branchService.getBranches(page);
+
+            setBranches(response.data);
+
+            setCurrentPage(response.meta.current_page);
+            setTotalPages(response.meta.last_page);
+            setTotalItems(response.meta.total);
+        } catch (error) {
+            console.error("Failed to load branches:", error);
+
+            setError(
+                "Unable to load branches. Please try again.",
+            );
+
+            showFeedback(
+                "error",
+                "Failed to load branches",
+                "There was a problem communicating with the server.",
+            );
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    /**
+     * Load branches when page opens
+     */
+    useEffect(() => {
+        loadBranches(1);
+    }, []);
+
+    /**
+     * Filter branches
+     *
+     * Since the current API returns all branches for the
+     * current page, these filters operate on the loaded page.
+     */
+    const filteredBranches = branches.filter((branch) => {
         const searchTerm = search.toLowerCase().trim();
 
-        return mockBranches.filter((branch) => {
-            const matchesSearch =
-                !searchTerm ||
-                branch.name.toLowerCase().includes(searchTerm) ||
-                branch.branchCode.toLowerCase().includes(searchTerm) ||
-                branch.phone.toLowerCase().includes(searchTerm) ||
-                branch.email.toLowerCase().includes(searchTerm) ||
-                branch.location.toLowerCase().includes(searchTerm) ||
-                branch.manager.toLowerCase().includes(searchTerm);
+        const matchesSearch =
+            !searchTerm ||
+            branch.name
+                .toLowerCase()
+                .includes(searchTerm) ||
+            branch.branchCode
+                .toLowerCase()
+                .includes(searchTerm) ||
+            branch.phone
+                .toLowerCase()
+                .includes(searchTerm) ||
+            branch.email
+                .toLowerCase()
+                .includes(searchTerm) ||
+            branch.location
+                .toLowerCase()
+                .includes(searchTerm) ||
+            branch.manager
+                .toLowerCase()
+                .includes(searchTerm);
 
-            const matchesType =
-                !type || branch.type === type;
+        const matchesType =
+            !type || branch.type === type;
 
-            const matchesStatus =
-                !status || branch.status === status;
+        const matchesStatus =
+            !status || branch.status === status;
 
-            return (
-                matchesSearch &&
-                matchesType &&
-                matchesStatus
-            );
-        });
-    }, [search, type, status]);
+        return (
+            matchesSearch &&
+            matchesType &&
+            matchesStatus
+        );
+    });
 
     function handleFilter() {
         setCurrentPage(1);
+        loadBranches(1);
     }
 
     function handlePageChange(page: number) {
         setCurrentPage(page);
+        loadBranches(page);
     }
+
     function handleDelete(branch: Branch) {
         setSelectedBranch(branch);
         setShowDeleteConfirmation(true);
@@ -145,18 +151,20 @@ export default function BranchesPage() {
         setShowDeactivateConfirmation(true);
     }
 
+    /**
+     * Delete branch
+     */
     async function confirmDelete() {
         if (!selectedBranch) return;
 
         setDeleting(true);
 
         try {
-            // API call will go here later.
-            await new Promise((resolve) =>
-                setTimeout(resolve, 700),
-            );
-
             const branchName = selectedBranch.name;
+
+            await branchService.deleteBranch(
+                selectedBranch.id,
+            );
 
             setShowDeleteConfirmation(false);
             setSelectedBranch(null);
@@ -166,23 +174,41 @@ export default function BranchesPage() {
                 "Branch deleted successfully",
                 `${branchName} has been removed from the system.`,
             );
+
+            await loadBranches(currentPage);
+        } catch (error) {
+            console.error(
+                "Failed to delete branch:",
+                error,
+            );
+
+            showFeedback(
+                "error",
+                "Failed to delete branch",
+                "The branch could not be deleted. Please try again.",
+            );
         } finally {
             setDeleting(false);
         }
     }
 
+    /**
+     * Deactivate branch
+     */
     async function confirmDeactivate() {
         if (!selectedBranch) return;
 
         setDeactivating(true);
 
         try {
-            // API call will go here later.
-            await new Promise((resolve) =>
-                setTimeout(resolve, 700),
-            );
-
             const branchName = selectedBranch.name;
+
+            await branchService.updateBranch(
+                selectedBranch.id,
+                {
+                    status: "inactive",
+                },
+            );
 
             setShowDeactivateConfirmation(false);
             setSelectedBranch(null);
@@ -190,9 +216,21 @@ export default function BranchesPage() {
             showFeedback(
                 "success",
                 "Branch updated successfully",
-                `${branchName} has been updated from the system.`,
+                `${branchName} has been deactivated.`,
             );
 
+            await loadBranches(currentPage);
+        } catch (error) {
+            console.error(
+                "Failed to deactivate branch:",
+                error,
+            );
+
+            showFeedback(
+                "error",
+                "Failed to update branch",
+                "The branch could not be deactivated. Please try again.",
+            );
         } finally {
             setDeactivating(false);
         }
@@ -233,16 +271,53 @@ export default function BranchesPage() {
                 onFilter={handleFilter}
             />
 
-            <BranchTable
-                branches={filteredBranches}
-                currentPage={currentPage}
-                totalPages={3}
-                totalItems={filteredBranches.length}
-                onPageChange={handlePageChange}
-                onDelete={handleDelete}
-                onDeactivate={handleDeactivate}
-            />
+            {/* Loading */}
+            {loading && (
+                <div className="rounded-lg border bg-white p-10 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="h-7 w-7 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
 
+                        <p className="text-sm text-muted-foreground">
+                            Loading branches...
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Error */}
+            {!loading && error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
+                    <p className="text-sm text-red-600">
+                        {error}
+                    </p>
+
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() =>
+                            loadBranches(currentPage)
+                        }
+                    >
+                        Try Again
+                    </Button>
+                </div>
+            )}
+
+            {/* Table */}
+            {!loading && !error && (
+                <BranchTable
+                    branches={filteredBranches}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    onPageChange={handlePageChange}
+                    onDelete={handleDelete}
+                    onDeactivate={handleDeactivate}
+                />
+            )}
+
+            {/* Delete Confirmation */}
             <ConfirmDialog
                 open={showDeleteConfirmation}
                 title="Delete Branch?"
@@ -262,6 +337,7 @@ export default function BranchesPage() {
                 }}
             />
 
+            {/* Deactivate Confirmation */}
             <ConfirmDialog
                 open={showDeactivateConfirmation}
                 title="Deactivate Branch?"

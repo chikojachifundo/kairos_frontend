@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import {useMemo, useState} from "react";
+import {useRouter} from "next/navigation";
 import {
     ArrowLeft,
     ArrowRight,
@@ -13,20 +13,20 @@ import {
     UserRound,
 } from "lucide-react";
 
-import type { Client } from "@/types/client";
-import type { Product } from "@/types/product";
-import type { ProductCharge } from "@/types/product-charge";
-import type { ProductChargeRecord } from "@/types/product-charge-record";
-import type { Disbursement } from "@/types/disbursement";
-import type { DisbursementCharge } from "@/types/disbursement-charge";
+import type {Client} from "@/types/client";
+import type {Product} from "@/types/product";
+import type {ProductCharge} from "@/types/product-charge";
+import type {ProductChargeRecord} from "@/types/product-charge-record";
+import type {Disbursement} from "@/types/disbursement";
 
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useFeedback } from "@/components/ui/feedback-bar";
+import {Button} from "@/components/ui/button";
+import {Card} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Select} from "@/components/ui/select";
+import {Textarea} from "@/components/ui/textarea";
+import {ConfirmDialog} from "@/components/ui/confirm-dialog";
+import {useFeedback} from "@/components/ui/feedback-bar";
+import {disbursementService} from "@/services/disbursement-service";
 
 interface DisbursementFormProps {
     mode: "create" | "edit";
@@ -37,7 +37,6 @@ interface DisbursementFormProps {
     productChargeRecords: ProductChargeRecord[];
 
     disbursement?: Disbursement;
-    disbursementCharges?: DisbursementCharge[];
 }
 
 interface FormData {
@@ -49,6 +48,8 @@ interface FormData {
     disbursementDate: string;
 
     principalAmount: string;
+    tenure: string;
+    tenureUnits: NonNullable<Disbursement["tenureUnits"]>;
 
     status: Disbursement["status"];
 
@@ -133,10 +134,9 @@ export function DisbursementForm({
                                      productCharges,
                                      productChargeRecords,
                                      disbursement,
-                                     disbursementCharges = [],
                                  }: DisbursementFormProps) {
     const router = useRouter();
-    const { showFeedback } = useFeedback();
+    const {showFeedback} = useFeedback();
 
     const [form, setForm] = useState<FormData>({
         clientId: disbursement?.clientId ?? "",
@@ -153,6 +153,9 @@ export function DisbursementForm({
 
         principalAmount:
             disbursement?.principalAmount?.toString() ?? "",
+
+        tenure: disbursement?.tenure?.toString() ?? "",
+        tenureUnits: disbursement?.tenureUnits ?? "months",
 
         status:
             disbursement?.status ?? "pending",
@@ -256,7 +259,7 @@ export function DisbursementForm({
                     Number(form.principalAmount) || 0;
 
                 return selectedProductCharges.map(
-                    ({ record, charge }) => {
+                    ({record, charge}) => {
                         let amount = 0;
 
                         if (record.status === "active") {
@@ -372,6 +375,14 @@ export function DisbursementForm({
                     "Principal amount must be greater than zero.";
             }
 
+            if (!form.tenure || Number(form.tenure) <= 0) {
+                nextErrors.tenure = "Tenure must be greater than zero.";
+            }
+
+            if (!form.tenureUnits) {
+                nextErrors.tenureUnits = "Please select tenure units.";
+            }
+
             if (
                 form.applicationDate &&
                 form.disbursementDate &&
@@ -452,6 +463,14 @@ export function DisbursementForm({
         } else if (principalAmount <= 0) {
             nextErrors.principalAmount =
                 "Principal amount must be greater than zero.";
+        }
+
+        if (!form.tenure || Number(form.tenure) <= 0) {
+            nextErrors.tenure = "Tenure must be greater than zero.";
+        }
+
+        if (!form.tenureUnits) {
+            nextErrors.tenureUnits = "Please select tenure units.";
         }
 
         if (
@@ -555,40 +574,15 @@ export function DisbursementForm({
         setSaving(true);
 
         /*
-         * Simulate API request.
-         *
-         * Replace this section with the actual
-         * Laravel/API request.
-         */
-        await new Promise((resolve) =>
-            setTimeout(resolve, 700),
-        );
-
-        /*
          * Snapshot charges.
          *
          * These values should be persisted as
          * DisbursementCharge records in the
          * real backend.
          */
-        const snapshotCharges:
-            DisbursementCharge[] =
+        const snapshotCharges =
             calculatedCharges.map(
-                (charge, index) => ({
-                    id:
-                        mode === "edit"
-                            ? disbursementCharges[
-                                index
-                                ]?.id ??
-                            Date.now() +
-                            index
-                            : Date.now() +
-                            index,
-
-                    disbursementId:
-                        disbursement?.id ??
-                        Date.now(),
-
+                (charge) => ({
                     productChargeId:
                     charge.productChargeId,
 
@@ -607,38 +601,34 @@ export function DisbursementForm({
                 }),
             );
 
-        console.log(
-            "Disbursement snapshot:",
-            {
-                clientId:
-                selectedClient.id,
-
-                productId:
-                selectedProduct.id,
-
+        try {
+            const payload = {
+                clientId: selectedClient.id,
+                productId: selectedProduct.id,
+                applicationDate: form.applicationDate,
+                approvalDate: form.approvalDate || null,
+                disbursementDate: form.disbursementDate,
                 principalAmount,
-
-                totalCharges,
-
-                totalAmount,
-
-                charges:
-                snapshotCharges,
-            },
-        );
-
-        setSaving(false);
-        setConfirmOpen(false);
-
-        showFeedback(
-            "success",
-            "",
-            mode === "create"
-                ? "Disbursement created successfully."
-                : "Disbursement updated successfully.",
-        );
-
-        router.push("/disbursements");
+                tenure: Number(form.tenure),
+                tenureUnits: form.tenureUnits,
+                status: form.status,
+                notes: form.notes.trim() || undefined
+            };
+            if (mode === "create") {
+                await disbursementService.createDisbursement(payload);
+            } else {
+                if (!disbursement) throw new Error("Disbursement information is missing.");
+                await disbursementService.updateDisbursement(disbursement.id, payload);
+            }
+            setConfirmOpen(false);
+            showFeedback("success", "", mode === "create" ? "Disbursement created successfully." : "Disbursement updated successfully.");
+            router.push("/disbursements");
+        } catch (error) {
+            console.error("Failed to save disbursement:", error);
+            showFeedback("error", "Unable to save disbursement", "Please try again.");
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -666,7 +656,7 @@ export function DisbursementForm({
                         {/* Desktop / Tablet Step Indicator */}
                         <div className="hidden sm:block">
                             <div className="relative">
-                                <div className="absolute left-0 right-0 top-5 h-0.5 bg-border" />
+                                <div className="absolute left-0 right-0 top-5 h-0.5 bg-border"/>
 
                                 <div
                                     className="absolute left-0 top-5 h-0.5 bg-primary transition-all duration-300"
@@ -710,9 +700,9 @@ export function DisbursementForm({
                                                         }`}
                                                     >
                                                         {isCompleted ? (
-                                                            <Check className="h-4 w-4" />
+                                                            <Check className="h-4 w-4"/>
                                                         ) : (
-                                                            <Icon className="h-4 w-4" />
+                                                            <Icon className="h-4 w-4"/>
                                                         )}
                                                     </div>
 
@@ -767,7 +757,8 @@ export function DisbursementForm({
                                     </p>
                                 </div>
 
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                                <div
+                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                                     {
                                         currentStep
                                     }
@@ -798,8 +789,9 @@ export function DisbursementForm({
 
                         <div className="mb-5 sm:mb-6">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                    <UserRound className="h-5 w-5" />
+                                <div
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                    <UserRound className="h-5 w-5"/>
                                 </div>
 
                                 <div>
@@ -995,7 +987,8 @@ export function DisbursementForm({
                                         Selected Client
                                     </p>
 
-                                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-medium text-primary">
+                                    <span
+                                        className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-medium text-primary">
                                         Active
                                     </span>
                                 </div>
@@ -1092,7 +1085,8 @@ export function DisbursementForm({
                                         </p>
                                     </div>
 
-                                    <span className="shrink-0 rounded-md bg-background px-2.5 py-1 text-xs font-medium text-muted">
+                                    <span
+                                        className="shrink-0 rounded-md bg-background px-2.5 py-1 text-xs font-medium text-muted">
                                         {
                                             selectedProduct.paymentTerm
                                         }
@@ -1134,8 +1128,9 @@ export function DisbursementForm({
 
                             <div className="mb-5 sm:mb-6">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                        <Banknote className="h-5 w-5" />
+                                    <div
+                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                        <Banknote className="h-5 w-5"/>
                                     </div>
 
                                     <div>
@@ -1162,7 +1157,8 @@ export function DisbursementForm({
                                 </label>
 
                                 <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted">
+                                    <span
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted">
                                         MWK
                                     </span>
 
@@ -1216,13 +1212,33 @@ export function DisbursementForm({
                             </div>
                         </Card>
 
+                        <Card className="p-4 sm:p-6">
+                            <h2 className="mb-4 text-base font-semibold text-primary">Loan Tenure</h2>
+                            <p className="mb-4 text-xs text-muted">Define the repayment period for this disbursement.</p>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label htmlFor="tenure" className="mb-1.5 block text-xs font-medium text-muted">Tenure</label>
+                                    <Input id="tenure" type="number" min="1" value={form.tenure} onChange={(event) => updateField("tenure", event.target.value)} placeholder="e.g. 12" />
+                                    {errors.tenure && <p className="mt-1 text-xs text-error">{errors.tenure}</p>}
+                                </div>
+                                <div>
+                                    <label htmlFor="tenureUnits" className="mb-1.5 block text-xs font-medium text-muted">Tenure Units</label>
+                                    <Select id="tenureUnits" value={form.tenureUnits} onChange={(event) => updateField("tenureUnits", event.target.value as FormData["tenureUnits"])}>
+                                        <option value="days">Days</option><option value="weeks">Weeks</option><option value="fortnights">Fortnights</option><option value="months">Months</option><option value="years">Years</option>
+                                    </Select>
+                                    {errors.tenureUnits && <p className="mt-1 text-xs text-error">{errors.tenureUnits}</p>}
+                                </div>
+                            </div>
+                        </Card>
+
                         {/* Dates */}
                         <Card className="p-4 sm:p-6">
 
                             <div className="mb-5 sm:mb-6">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                        <CalendarDays className="h-5 w-5" />
+                                    <div
+                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                        <CalendarDays className="h-5 w-5"/>
                                     </div>
 
                                     <div>
@@ -1417,8 +1433,9 @@ export function DisbursementForm({
 
                         <div className="border-b border-border p-4 sm:p-6">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                    <Calculator className="h-5 w-5" />
+                                <div
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                    <Calculator className="h-5 w-5"/>
                                 </div>
 
                                 <div>
@@ -1561,7 +1578,8 @@ export function DisbursementForm({
                                                         </p>
                                                     </div>
 
-                                                    <span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+                                                    <span
+                                                        className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
                                                         {charge.type ===
                                                         "percentage"
                                                             ? `${charge.rate}%`
@@ -1577,7 +1595,8 @@ export function DisbursementForm({
                                                     </p>
                                                 )}
 
-                                                <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                                                <div
+                                                    className="mt-4 flex items-center justify-between border-t border-border pt-3">
                                                     <span className="text-xs text-muted">
                                                         Charge Amount
                                                     </span>
@@ -1621,7 +1640,8 @@ export function DisbursementForm({
                                             </span>
                                         </div>
 
-                                        <div className="mt-3 flex items-center justify-between gap-4 border-t border-border pt-3">
+                                        <div
+                                            className="mt-3 flex items-center justify-between gap-4 border-t border-border pt-3">
                                             <span className="font-semibold text-primary">
                                                 Total Loan Amount
                                             </span>
@@ -1649,8 +1669,9 @@ export function DisbursementForm({
                         {/* Review Header */}
                         <Card className="border-primary/10 bg-primary/5 p-4 sm:p-6">
                             <div className="flex items-start gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
-                                    <ClipboardCheck className="h-5 w-5" />
+                                <div
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
+                                    <ClipboardCheck className="h-5 w-5"/>
                                 </div>
 
                                 <div>
@@ -1786,6 +1807,25 @@ export function DisbursementForm({
                                         {formatDate(
                                             form.disbursementDate,
                                         )}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-muted">
+                                        Tenure
+                                    </p>
+
+                                    <p className="mt-1 text-sm font-semibold text-foreground">
+                                        {form.tenure || "-"} {form.tenure && form.tenureUnits}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-muted">
+                                        Tenure Units
+                                    </p>
+                                    <p className="mt-1 text-sm font-medium capitalize text-foreground">
+                                        {form.tenureUnits || "-"}
                                     </p>
                                 </div>
 
@@ -1946,7 +1986,8 @@ export function DisbursementForm({
                 {/* =====================================================
                     NAVIGATION
                 ====================================================== */}
-                <div className="sticky bottom-0 z-20 -mx-1 border-t border-border bg-background/95 px-1 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+                <div
+                    className="sticky bottom-0 z-20 -mx-1 border-t border-border bg-background/95 px-1 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
                     <div className="flex items-center justify-between gap-3">
 
                         {/* Left Button */}
@@ -1967,12 +2008,12 @@ export function DisbursementForm({
                             {currentStep ===
                             1 ? (
                                 <>
-                                    <ArrowLeft className="mr-1.5 h-4 w-4" />
+                                    <ArrowLeft className="mr-1.5 h-4 w-4"/>
                                     Cancel
                                 </>
                             ) : (
                                 <>
-                                    <ArrowLeft className="mr-1.5 h-4 w-4" />
+                                    <ArrowLeft className="mr-1.5 h-4 w-4"/>
                                     Back
                                 </>
                             )}
@@ -1991,7 +2032,7 @@ export function DisbursementForm({
                                 }
                             >
                                 Continue
-                                <ArrowRight className="ml-1.5 h-4 w-4" />
+                                <ArrowRight className="ml-1.5 h-4 w-4"/>
                             </Button>
                         ) : (
                             <Button
@@ -2003,7 +2044,7 @@ export function DisbursementForm({
                                     saving
                                 }
                             >
-                                <Check className="mr-1.5 h-4 w-4" />
+                                <Check className="mr-1.5 h-4 w-4"/>
 
                                 {mode ===
                                 "create"

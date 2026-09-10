@@ -12,6 +12,7 @@ import {Select} from "@/components/ui/select";
 import {Textarea} from "@/components/ui/textarea";
 import {ConfirmDialog} from "@/components/ui/confirm-dialog";
 import { useFeedback } from "@/components/ui/feedback-bar";
+import { branchService } from "@/services/branch-service";
 
 import type {BranchFormData} from "@/types/branch";
 
@@ -100,13 +101,13 @@ export function BranchForm({
             newErrors.address = "Address is required.";
         }
 
-        if (!form.city.trim()) {
-            newErrors.city = "City is required.";
-        }
-
-        if (!form.region.trim()) {
-            newErrors.region = "Region is required.";
-        }
+        // if (!form.city.trim()) {
+        //     newErrors.city = "City is required.";
+        // }
+        //
+        // if (!form.region.trim()) {
+        //     newErrors.region = "Region is required.";
+        // }
 
         if (!form.manager.trim()) {
             newErrors.manager = "Branch manager is required.";
@@ -131,29 +132,55 @@ export function BranchForm({
         setSaving(true);
 
         try {
-            // API call will be added here later.
-            await new Promise((resolve) => setTimeout(resolve, 700));
+            const payload = {
+                branchCode: form.branchCode.trim(),
+                name: form.name.trim(),
+                type: form.type,
+                status: form.status,
+                phone: form.phone.trim(),
+                email: form.email.trim(),
+                location: form.address.trim(),
+                manager: form.manager.trim(),
+            };
 
-            setShowConfirmation(false);
-
-            // router.push(isEdit ? `/branches/${initialData?.branchCode}` : "/branches");
             if (isEdit && branchId) {
+                await branchService.updateBranch(branchId, payload);
+
+                setShowConfirmation(false);
+
                 showFeedback(
                     "success",
                     "Branch updated successfully",
-                    `${form.name} has been updated from the system.`,
+                    `Branch :- ${form.name} has been updated successfully.`,
                 );
+
                 router.push(`/branches/${branchId}`);
             } else {
+                await branchService.createBranch(payload);
+
+                setShowConfirmation(false);
+
                 showFeedback(
                     "success",
-                    "Branch updated successfully",
-                    `${form.name} has been updated from the system.`,
+                    "Branch created successfully",
+                    `${form.name} has been added successfully.`,
                 );
+
                 router.push("/branches");
             }
-        } finally {
+        } catch (error: any) {
+            console.error("Failed to save branch:", error);
 
+            const message =
+                error?.response?.data?.message ||
+                "An error occurred while saving the branch. Please try again.";
+
+            showFeedback(
+                "error",
+                "Unable to save branch",
+                message,
+            );
+        } finally {
             setSaving(false);
         }
     }
@@ -331,37 +358,37 @@ export function BranchForm({
                             </FormField>
                         </div>
 
-                        <FormField
-                            label="City / Town"
-                            htmlFor="city"
-                            required
-                            error={errors.city}
-                        >
-                            <Input
-                                id="city"
-                                value={form.city}
-                                onChange={(event) =>
-                                    updateField("city", event.target.value)
-                                }
-                                placeholder="e.g. Blantyre"
-                            />
-                        </FormField>
+                        {/*<FormField*/}
+                        {/*    label="City / Town"*/}
+                        {/*    htmlFor="city"*/}
+                        {/*    required*/}
+                        {/*    error={errors.city}*/}
+                        {/*>*/}
+                        {/*    <Input*/}
+                        {/*        id="city"*/}
+                        {/*        value={form.city}*/}
+                        {/*        onChange={(event) =>*/}
+                        {/*            updateField("city", event.target.value)*/}
+                        {/*        }*/}
+                        {/*        placeholder="e.g. Blantyre"*/}
+                        {/*    />*/}
+                        {/*</FormField>*/}
 
-                        <FormField
-                            label="Region"
-                            htmlFor="region"
-                            required
-                            error={errors.region}
-                        >
-                            <Input
-                                id="region"
-                                value={form.region}
-                                onChange={(event) =>
-                                    updateField("region", event.target.value)
-                                }
-                                placeholder="e.g. Southern Region"
-                            />
-                        </FormField>
+                        {/*<FormField*/}
+                        {/*    label="Region"*/}
+                        {/*    htmlFor="region"*/}
+                        {/*    required*/}
+                        {/*    error={errors.region}*/}
+                        {/*>*/}
+                        {/*    <Input*/}
+                        {/*        id="region"*/}
+                        {/*        value={form.region}*/}
+                        {/*        onChange={(event) =>*/}
+                        {/*            updateField("region", event.target.value)*/}
+                        {/*        }*/}
+                        {/*        placeholder="e.g. Southern Region"*/}
+                        {/*    />*/}
+                        {/*</FormField>*/}
                     </div>
                 </Card>
 

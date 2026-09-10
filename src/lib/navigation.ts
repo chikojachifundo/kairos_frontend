@@ -46,7 +46,7 @@ export const mainNavigation: NavigationItem[] = [
     },
     {
         title: "LoanBook",
-        href: "/loanbook",
+        href: "/loans",
         icon: ClipboardList,
     },
     {
